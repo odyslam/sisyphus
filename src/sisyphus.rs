@@ -369,12 +369,15 @@ pub trait Boulder: std::fmt::Display + Sized {
                             }
 
                             Ok(Fall::Shutdown{mut task}) => {
-                                let _ = task.cleanup().await;
                                 // We don't check the result of the send
                                 // because we're stopping regardless of
                                 // whether it worked
-                                let _ = tx.send(TaskStatus::Stopped{exceptional: false, err: eyre::eyre!("Shutdown")});
+                                // abort work
                                 handle.abort();
+                                // then  cleanup
+                                let _ = task.cleanup().await;
+                                // then set status to Stopped
+                                let _ = tx.send(TaskStatus::Stopped{exceptional: false, err: eyre::eyre!("Shutdown")});
                                 break;
                             }
 
@@ -405,7 +408,6 @@ pub trait Boulder: std::fmt::Display + Sized {
                                 panic::resume_unwind(p);
                             }
                         };
-
                         // We use a noisy sleep here to nudge tasks off
                         // eachother if they're crashing around the same time
                         utils::noisy_sleep(again.restart_after_ms()).await;
