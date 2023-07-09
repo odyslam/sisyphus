@@ -6,8 +6,10 @@ use std::{
         atomic::{AtomicUsize, Ordering},
         Arc,
     },
+    task::{Context, Poll},
 };
 
+use futures::FutureExt;
 use tokio::{
     select,
     sync::{oneshot, watch},
@@ -184,6 +186,17 @@ impl IntoFuture for Sisyphus {
 #[derive(Debug)]
 /// The shutdown signal for the task
 pub struct ShutdownSignal(oneshot::Receiver<()>);
+
+impl Future for ShutdownSignal {
+    type Output = Result<(), oneshot::error::RecvError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match self.0.poll_unpin(cx) {
+            Poll::Ready(res) => Poll::Ready(res),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
 
 /// Convenience trait for conerting errors to [`Fall`]
 pub trait ErrExt: std::error::Error + Sized + Send + Sync + 'static {
