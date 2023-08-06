@@ -316,7 +316,7 @@ pub trait Boulder: std::fmt::Display + Sized {
                     .map(|e| format!("[{}]", e.to_string()))
                     .collect::<Vec<String>>()
                     .join("->");
-                tracing::error!(err = %err, error_chain, task = task_description.as_str(), "Error encountered during bootstrap");
+                tracing::error!(err = %err, error_chain, task = task_description.as_str(), "Task encountered an Error during bootstrap");
                 let _ = tx.send(TaskStatus::Stopped {
                     exceptional: true,
                     err: Arc::new(err),
@@ -326,8 +326,8 @@ pub trait Boulder: std::fmt::Display + Sized {
                 res.unwrap()
             };
             let handle = self.spawn(shutdown);
-            // tx.send(TaskStatus::Running)
-            //     .expect("Failed to send task status");
+            tx.send(TaskStatus::Running)
+                .expect("Failed to send task status");
             tokio::pin!(handle);
             loop {
                 select! {
@@ -351,7 +351,7 @@ pub trait Boulder: std::fmt::Display + Sized {
                             }
 
                             Ok(Fall::Unrecoverable { err, exceptional, task }) => {
-                                let error_chain= err.chain().map(|e| e.to_string()).collect::<Vec<String>>().join(" --> ");
+                                let error_chain= err.chain().map(|e| format!("[{}]", e.to_string())).collect::<Vec<String>>().join("->");
                                 if exceptional {
                                     tracing::error!(err = %err, error_chain, task = task_description.as_str(), "Exceptional unrecoverable error encountered");
                                 } else {
@@ -371,6 +371,7 @@ pub trait Boulder: std::fmt::Display + Sized {
                                 // whether it worked
                                 // abort work
                                 handle.abort();
+                                tracing::trace!("Task received shutdown signal and aborted handle");
                                 // then  cleanup
                                 let _ = task.cleanup().await;
                                 // then set status to Stopped
