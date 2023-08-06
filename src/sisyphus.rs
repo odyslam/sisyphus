@@ -334,6 +334,7 @@ pub trait Boulder: std::fmt::Display + Sized {
                                 // We don't check the result of the send
                                 // because we're stopping regardless of
                                 // whether it worked
+                                let _ = tx.send(TaskStatus::Stopped{exceptional: false, err: Arc::new(eyre::eyre!("Shutdown"))});
                                 break;
                             }
 
@@ -343,11 +344,9 @@ pub trait Boulder: std::fmt::Display + Sized {
                                 // whether it worked
                                 // abort work
                                 handle.abort();
-                                tracing::trace!("Task received shutdown signal and aborted handle");
+                                tracing::trace!(task=task_description.as_str(), "Task received shutdown signal and aborted handle");
                                 // then  cleanup
                                 let _ = task.cleanup().await;
-                                // then set status to Stopped
-                                let _ = tx.send(TaskStatus::Stopped{exceptional: false, err: Arc::new(eyre::eyre!("Shutdown"))});
                                 break;
                             }
 
