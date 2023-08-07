@@ -299,8 +299,8 @@ pub trait Boulder: std::fmt::Display + Sized {
         let restarts_loop_ref = restarts.clone();
         let task: JoinHandle<()> = tokio::spawn(async move {
             let handle = self.spawn(shutdown);
-            tx.send(TaskStatus::Running)
-                .expect("Failed to send task status");
+            // tx.send(TaskStatus::Running)
+            //     .expect("Failed to send task status");
             tokio::pin!(handle);
             loop {
                 select! {
@@ -347,6 +347,8 @@ pub trait Boulder: std::fmt::Display + Sized {
                                 tracing::trace!(task=task_description.as_str(), "Task received shutdown signal and aborted handle");
                                 // then  cleanup
                                 let _ = task.cleanup().await;
+                                // then set status to Stopped
+                                let _ = tx.send(TaskStatus::Stopped{exceptional: false, err: Arc::new(eyre::eyre!("Shutdown"))});
                                 break;
                             }
 
