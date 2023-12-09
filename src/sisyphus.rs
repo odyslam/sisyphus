@@ -15,6 +15,7 @@ use tokio::{
     sync::{oneshot, watch},
     task::JoinHandle,
 };
+use tracing::Instrument;
 
 use crate::utils;
 
@@ -307,34 +308,38 @@ pub trait Boulder: std::fmt::Display + Sized {
                     result = &mut handle => {
                         let (again, shutdown) = match result {
                             Ok(Fall::Recoverable { mut task, shutdown, err }) => {
-                                // Sisyphus has been dropped, so we can drop this task
-                                let e_string = err.to_string();
-                                let error_chain= err.chain().map(|e| e.to_string()).collect::<Vec<String>>().join(" --> ");
+                                let span = tracing::warn_span!("recoverable", task = task_description);
+                                let _enter = span.enter();
+                                let total = err.chain().len();
+                                for (mut index, error) in err.chain().enumerate() {
+                                    index+=1;
+                                    tracing::warn!(error = format!("Error {index}/{total}"), error);
+                                }
                                 if tx.send(TaskStatus::Recovering(Arc::new(err))).is_err() {
                                     break;
                                 }
-                                task = task.recover().await.unwrap();
-                                tracing::warn!(
-                                    error = e_string.to_string(),
-                                    task = task_description.as_str(),
-                                    error_chain,
-                                    "Restarting task ↺",
-                                );
+                                tracing::warn!("Task Recovering...");
+                                task = task.recover().instrument(span.clone()).await.unwrap();
+                                tracing::warn!("Task Restarting ↺");
                                 (task, shutdown)
                             }
 
                             Ok(Fall::Unrecoverable { err, exceptional, task }) => {
-                                let error_chain= err.chain().map(|e| format!("[{}]", e.to_string())).collect::<Vec<String>>().join("->");
-                                if exceptional {
-                                    tracing::error!(err = %err, error_chain, task = task_description.as_str(), "Exceptional unrecoverable error encountered");
-                                } else {
-                                    tracing::warn!(err = %err, error_chain, task = task_description.as_str(), "Unrecoverable error encountered");
+                                let span = tracing::warn_span!("unrecoverable", task = task_description);
+                                let _enter = span.enter();
+                                let total = err.chain().len();
+                                for (mut index, error) in err.chain().enumerate() {
+                                    index+=1;
+                                    if exceptional {
+                                        tracing::error!(exceptional, error, "Error {index}/{total}");
+                                    } else {
+                                        tracing::warn!(exceptional, error, "Error {index}/{total}");
+                                    }
                                 }
-                                let _ = task.cleanup().await;
-                                // We don't check the result of the send
-                                // because we're stopping regardless of
-                                // whether it worked
+                                tracing::warn!("Task Cleaning up..");
+                                let _ = task.cleanup().instrument(span.clone()).await;
                                 let _ = tx.send(TaskStatus::Stopped{exceptional, err: Arc::new(err)});
+                                tracing::warn!("Task Shutting down Ⓧ");
                                 break;
                             }
 
