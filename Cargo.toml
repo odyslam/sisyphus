@@ -7,6 +7,8 @@ authors = [
   "Odysseas.eth <me@odyslam.com>",
 ]
 description = "Reusable utils for long-lived, worker-oriented rust programs"
+readme = "README.md"
+repository = "https://github.com/odyslam/sisyphus-tasks"
 license = "Apache-2.0 OR MIT"
 
 [dependencies]
