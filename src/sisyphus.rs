@@ -156,8 +156,37 @@ impl Sisyphus {
         self.task
     }
 
-    /// Wait for the task to change status.
-    /// Errors if the status channel is closed.
+    /// Wait for the task status to change. Returns the new status if it has changed,  
+    /// or an error if the status channel is closed. It returns immediately if the current
+    /// status has not be read, else it wait to change
+    ///
+    /// # Returns
+    ///
+    /// - `Ok(TaskStatus)`: The new task status if it has changed.
+    /// - `Err(watch::error::RecvError)`: An error indicating that the status channel is closed.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use sisyphus-tasks::sisyphus::TaskStatus;
+    ///
+    /// # #[tokio::main]
+    /// # async fn main() {
+    ///
+    /// let mut task = Task::new();
+    /// let status = task.watch_status().await;
+    ///
+    /// match status {
+    ///     Ok(new_status) => {
+    ///         println!("New status: {:?}", new_status);
+    ///     },
+    ///     Err(err) => {
+    ///         println!("Error: {:?}", err);
+    ///     }
+    /// }
+    ///
+    /// # }
+    /// ```
     pub async fn watch_status(&mut self) -> Result<TaskStatus, watch::error::RecvError> {
         self.status.changed().await?;
         Ok(self.status.borrow().clone())
@@ -300,10 +329,10 @@ pub trait Boulder: std::fmt::Display + Sized {
         let restarts_loop_ref = restarts.clone();
         let task: JoinHandle<()> = tokio::spawn(async move {
             let handle = self.spawn(shutdown);
-            tx.send(TaskStatus::Running)
-                .expect("Failed to send task status");
             tokio::pin!(handle);
             loop {
+                tx.send(TaskStatus::Running)
+                    .expect("Failed to send task status");
                 select! {
                     result = &mut handle => {
                         let (again, shutdown) = match result {
