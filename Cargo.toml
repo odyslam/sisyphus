@@ -1,8 +1,11 @@
 [package]
-name = "sisyphus"
-version = "0.1.0"
+name = "sisyphus-tasks"
+version = "0.1.1"
 edition = "2021"
-authors = ["James Prestwich <james@prestwi.ch>"]
+authors = [
+  "James Prestwich <james@prestwi.ch>",
+  "Odysseas.eth <me@odyslam.com>",
+]
 description = "Reusable utils for long-lived, worker-oriented rust programs"
 license = "Apache-2.0 OR MIT"
 

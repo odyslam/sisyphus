@@ -284,6 +284,7 @@ where
     }
 }
 
+#[allow(clippy::non_canonical_clone_impl)]
 impl<T, const N: usize> Clone for MetricDescriptor<T, N>
 where
     T: Collector,

@@ -1,4 +1,4 @@
-# Sisyphus
+# Sisyphus Tasks
 
 Utilities for long-running, resilient tasks.
 
